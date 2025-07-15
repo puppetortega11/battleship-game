@@ -1,15 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battleship Game</title>
-    <!-- Link to external CSS file -->
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battleship Game</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Welcome to Battleship!</h1>
-    <!-- Main content will go here -->
-    <script src="script.js"></script>
+  <h1>Battleship</h1>
+  <div id="game-container">
+    <div>
+      <h2>Your Board</h2>
+      <div id="player-board" class="grid" role="grid" aria-label="Player's Battleship Grid"></div>
+    </div>
+    <div>
+      <h2>AI Board</h2>
+      <div id="ai-board" class="grid" role="grid" aria-label="AI's Battleship Grid"></div>
+    </div>
+  </div>
+  <div id="controls">
+    <button id="start-game">Start Game</button>
+    <button id="random-ships">Place Ships Randomly</button>
+  </div>
+  <div id="status">Click "Start Game" to begin!</div>
+  <script src="script.js"></script>
 </body>
-</html> 
+</html>
