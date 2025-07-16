@@ -1,4 +1,4 @@
-/* styles.css - Basic styles for Battleship Game */
+/* styles.css - Enhanced styles for Battleship Game */
 
 body {
     font-family: Arial, sans-serif;
@@ -14,4 +14,71 @@ body {
 h1 {
     color: #00796b;
     margin-top: 40px;
-} 
+}
+
+#game-container {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(10, 40px);
+    grid-template-rows: repeat(10, 40px);
+    gap: 2px;
+    margin: 20px;
+}
+
+.cell {
+    width: 40px;
+    height: 40px;
+    background-color: #3498db; /* Water */
+    border: 1px solid #000;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.2s;
+}
+
+.ship { background-color: #7f8c8d; } /* Player's ships */
+.hit { background-color: #e74c3c; } /* Hits */
+.miss { background-color: #ecf0f1; } /* Misses */
+
+#controls {
+    margin: 20px;
+    text-align: center;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    background-color: #00796b;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background-color: #004d40;
+}
+
+#status {
+    font-size: 18px;
+    color: #d32f2f;
+    text-align: center;
+    margin: 20px;
+}
+
+@media (max-width: 600px) {
+    .grid {
+        grid-template-columns: repeat(10, 30px);
+        grid-template-rows: repeat(10, 30px);
+    }
+    .cell {
+        width: 30px;
+        height: 30px;
+    }
+}
