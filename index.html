@@ -532,11 +532,11 @@
     <div class="ship-dock" id="ship-dock">
       <h3>🚢 Fleet Command</h3>
       <div class="ship-fleet">
-        <div class="ship-item" data-type="carrier" data-size="5">⚓ Aircraft Carrier (5)</div>
-        <div class="ship-item" data-type="battleship" data-size="4">🚢 Battleship (4)</div>
-        <div class="ship-item" data-type="cruiser" data-size="3">⛵ Cruiser (3)</div>
-        <div class="ship-item" data-type="submarine" data-size="3">🚤 Submarine (3)</div>
-        <div class="ship-item" data-type="destroyer" data-size="2">🛥️ Destroyer (2)</div>
+        <div class="ship-item" data-type="carrier" data-size="5" draggable="true">⚓ Aircraft Carrier (5)</div>
+        <div class="ship-item" data-type="battleship" data-size="4" draggable="true">🚢 Battleship (4)</div>
+        <div class="ship-item" data-type="cruiser" data-size="3" draggable="true">⛵ Cruiser (3)</div>
+        <div class="ship-item" data-type="submarine" data-size="3" draggable="true">🚤 Submarine (3)</div>
+        <div class="ship-item" data-type="destroyer" data-size="2" draggable="true">🛥️ Destroyer (2)</div>
       </div>
       <div class="controls">
         <button class="control-btn" id="rotate-btn">🔄 Rotate Ship</button>
@@ -634,6 +634,10 @@
             cell.addEventListener('click', () => handlePlayerGridClick(row, col));
             cell.addEventListener('mouseenter', () => showPlacementPreview(row, col));
             cell.addEventListener('mouseleave', () => clearPlacementPreview());
+            // Drag-and-drop events
+            cell.addEventListener('dragover', handleCellDragOver);
+            cell.addEventListener('dragleave', handleCellDragLeave);
+            cell.addEventListener('drop', handleCellDrop);
           } else if (gridType === 'enemy' && gamePhase === 'playing') {
             cell.addEventListener('click', () => handleEnemyGridClick(row, col));
           }
@@ -650,9 +654,12 @@
         btn.addEventListener('click', () => selectGameMode(btn.dataset.mode));
       });
 
-      // Ship selection
+      // Ship selection (click)
       document.querySelectorAll('.ship-item').forEach(ship => {
         ship.addEventListener('click', () => selectShip(ship));
+        // Drag-and-drop events for ships
+        ship.addEventListener('dragstart', handleShipDragStart);
+        ship.addEventListener('dragend', handleShipDragEnd);
       });
 
       // Control buttons
@@ -664,6 +671,13 @@
       // Powerups
       document.getElementById('sonar-btn').addEventListener('click', useSonar);
       document.getElementById('airstrike-btn').addEventListener('click', useAirstrike);
+
+      // Drag-and-drop events for player grid cells
+      document.querySelectorAll('[data-grid="player"] .cell').forEach(cell => {
+        cell.addEventListener('dragover', handleCellDragOver);
+        cell.addEventListener('dragleave', handleCellDragLeave);
+        cell.addEventListener('drop', handleCellDrop);
+      });
     }
 
     // Game mode selection
@@ -1207,6 +1221,59 @@
     // Update status message
     function updateStatus(message) {
       document.getElementById('status').textContent = message;
+    }
+
+    // Drag-and-drop handlers for ships
+    let draggedShip = null;
+    function handleShipDragStart(e) {
+      if (this.classList.contains('placed')) {
+        e.preventDefault();
+        return;
+      }
+      draggedShip = SHIPS.find(s => s.type === this.dataset.type);
+      // Store ship type and orientation in dataTransfer
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        type: draggedShip.type,
+        size: draggedShip.size,
+        orientation: orientation
+      }));
+      // Optional: highlight possible drop targets
+    }
+    function handleShipDragEnd(e) {
+      draggedShip = null;
+      clearPlacementPreview();
+    }
+
+    // Drag-and-drop handlers for grid cells
+    function handleCellDragOver(e) {
+      e.preventDefault(); // Allow drop
+      if (!draggedShip || gamePhase !== 'setup') return;
+      const row = parseInt(this.dataset.row);
+      const col = parseInt(this.dataset.col);
+      const canDeploy = canPlaceShip(playerGrid, row, col, draggedShip.size, orientation);
+      // Show preview for dragged ship
+      selectedShip = draggedShip;
+      showPlacementPreview(row, col);
+      // No need to add extra classes here; showPlacementPreview handles visual feedback
+    }
+    function handleCellDragLeave(e) {
+      clearPlacementPreview();
+    }
+    function handleCellDrop(e) {
+      e.preventDefault();
+      if (!draggedShip || gamePhase !== 'setup') return;
+      const row = parseInt(this.dataset.row);
+      const col = parseInt(this.dataset.col);
+      if (!canPlaceShip(playerGrid, row, col, draggedShip.size, orientation)) {
+        updateStatus('DEPLOYMENT BLOCKED - SELECT ALTERNATIVE COORDINATES');
+        clearPlacementPreview();
+        return;
+      }
+      // Place the ship
+      selectedShip = draggedShip;
+      placeShip(row, col);
+      draggedShip = null;
+      clearPlacementPreview();
     }
 
     // Initialize game when page loads
