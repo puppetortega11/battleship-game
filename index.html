@@ -380,7 +380,7 @@
       width: 32px;
       height: 32px;
       background: linear-gradient(145deg, #001100, #000800);
-      border: 1px solid #00ff4120;
+      border: 1px solid #00ff41; /* Reinforced for visible grid lines */
       cursor: crosshair;
       transition: all 0.2s;
       display: flex;
@@ -1077,6 +1077,83 @@
     document.addEventListener('DOMContentLoaded', () => {
       initGame();
     });
+
+    function randomPlacement() {
+      // Clear the board first
+      playerGrid = Array(10).fill().map(() => Array(10).fill(null));
+      playerShips = [];
+      selectedShip = null;
+      document.querySelectorAll('.ship-selector').forEach(ship => {
+        ship.classList.remove('deployed', 'selected');
+      });
+      document.getElementById('start-btn').disabled = true;
+
+      // Try to place each ship randomly
+      SHIPS.forEach(ship => {
+        let placed = false;
+        let attempts = 0;
+        while (!placed && attempts < 100) {
+          const orientation = Math.random() > 0.5 ? 'horizontal' : 'vertical';
+          const row = Math.floor(Math.random() * (orientation === 'vertical' ? 11 - ship.size : 10));
+          const col = Math.floor(Math.random() * (orientation === 'horizontal' ? 11 - ship.size : 10));
+          if (canPlaceShip(playerGrid, row, col, ship.size, orientation)) {
+            // Place the ship
+            const shipCells = [];
+            for (let i = 0; i < ship.size; i++) {
+              const targetRow = row + (orientation === 'vertical' ? i : 0);
+              const targetCol = col + (orientation === 'horizontal' ? i : 0);
+              playerGrid[targetRow][targetCol] = ship.type;
+              shipCells.push({ row: targetRow, col: targetCol });
+            }
+            playerShips.push({
+              ...ship,
+              cells: shipCells,
+              hits: 0,
+              sunk: false,
+              orientation
+            });
+            document.querySelector(`[data-type="${ship.type}"]`).classList.add('deployed');
+            placed = true;
+          }
+          attempts++;
+        }
+      });
+
+      updatePlayerGrid();
+      addShipGridClickHandlers();
+      document.getElementById('start-btn').disabled = false;
+      updateStatus('Fleet auto-deployed! All ships battle-ready, Admiral!');
+    }
+
+    let selectedPlacedShip = null;
+    function selectPlacedShip(ship) {
+      // Deselect previous
+      document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => cell.classList.remove('ship-selected'));
+      // Highlight this ship
+      ship.cells.forEach(cellInfo => {
+        const cell = document.querySelector(`[data-grid="player"][data-row="${cellInfo.row}"][data-col="${cellInfo.col}"]`);
+        if (cell) cell.classList.add('ship-selected');
+      });
+      selectedPlacedShip = ship;
+      updateStatus(`${ship.name.toUpperCase()} SELECTED - CLICK ROTATE TO CHANGE ORIENTATION`);
+    }
+
+    function addShipGridClickHandlers() {
+      // Remove previous listeners and selection
+      document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
+        cell.classList.remove('ship-selected');
+        cell.onclick = null;
+      });
+      // Add click listeners to ship cells
+      playerShips.forEach(ship => {
+        ship.cells.forEach(cellInfo => {
+          const cell = document.querySelector(`[data-grid="player"][data-row="${cellInfo.row}"][data-col="${cellInfo.col}"]`);
+          if (cell) {
+            cell.onclick = () => selectPlacedShip(ship);
+          }
+        });
+      });
+    }
   </script>
 </body>
 </html>
