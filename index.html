@@ -7,15 +7,31 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Battleship</h1>
+  <div id="strategy-panel">
+    <h2>Strategy Panel</h2>
+    <div id="ship-list">
+      <div class="ship-silhouette" data-type="carrier">Carrier</div>
+      <div class="ship-silhouette" data-type="battleship">Battleship</div>
+      <div class="ship-silhouette" data-type="cruiser">Cruiser</div>
+      <div class="ship-silhouette" data-type="submarine">Submarine</div>
+      <div class="ship-silhouette" data-type="destroyer">Destroyer</div>
+    </div>
+    <div id="control-buttons">
+      <button id="rotate-btn" title="Rotate Ship">↺</button>
+      <button id="delete-btn" title="Delete Ship">🗑️</button>
+      <button id="reset-btn" title="Reset">⟳</button>
+      <button id="sound-btn" title="Sound">🔊</button>
+      <button id="close-btn" title="Close">✖</button>
+    </div>
+  </div>
   <div id="game-container">
     <div>
       <h2>Your Board</h2>
-      <div id="player-board" class="grid" role="grid" aria-label="Player's Battleship Grid"></div>
+      <div id="strategy-grid" class="grid"></div>
     </div>
     <div>
       <h2>AI Board</h2>
-      <div id="ai-board" class="grid" role="grid" aria-label="AI's Battleship Grid"></div>
+      <div id="ai-board" class="grid"></div>
     </div>
   </div>
   <div id="controls">
