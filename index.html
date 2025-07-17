@@ -670,7 +670,6 @@
       <div class="status-bar">
         <div class="mode-selector" id="mode-selector">
           <button class="mode-btn active" data-mode="classic">Standard</button>
-          <button class="mode-btn" data-mode="advanced">Enhanced</button>
         </div>
         
         <div class="radar-stats">
@@ -720,11 +719,6 @@
           <button class="control-button" id="clear-btn">⌫ CLEAR ALL</button>
           <button class="control-button" id="delete-btn" disabled>🗑 DELETE</button>
           <button class="control-button" id="start-battle-btn" disabled>▶ START BATTLE</button>
-        </div>
-
-        <div class="tactical-systems" id="tactical-systems" style="display: none;">
-          <button class="tactical-button" id="sonar-btn" disabled>📡 SONAR [200]</button>
-          <button class="tactical-button" id="airstrike-btn" disabled">✈ AIRSTRIKE [100]</button>
         </div>
       </div>
 
@@ -857,10 +851,6 @@ function setupEventListeners() {
   startBtn.removeEventListener('click', startGame);
   startBtn.addEventListener('click', startGame);
 
-  // Powerups
-  document.getElementById('sonar-btn').addEventListener('click', useSonar);
-  document.getElementById('airstrike-btn').addEventListener('click', useAirstrike);
-
   // Drag-and-drop events for player grid cells
   document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
     cell.addEventListener('dragover', handleCellDragOver);
@@ -874,13 +864,7 @@ function selectGameMode(mode) {
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
-  
-  const powerupsDiv = document.getElementById('tactical-systems');
-  powerupsDiv.style.display = mode === 'advanced' ? 'block' : 'none';
-  
-  updateStatus(mode === 'classic' 
-    ? 'Classic Mode: Traditional naval warfare!' 
-    : 'Advanced Mode: Strategic warfare with tactical support!');
+  updateStatus('Classic Mode: Traditional naval warfare!');
 }
 
 // Ship selection
@@ -1492,18 +1476,6 @@ function showMissionCompleteScreen(won) {
     </div>
   `;
   document.body.appendChild(missionCompleteDiv);
-}
-
-function useSonar() {
-  updateStatus('Sonar activated! Revealing nearby enemy ships.');
-  // In a real game, this would reveal nearby enemy ship cells
-  // For now, it just shows a message
-}
-
-function useAirstrike() {
-  updateStatus('Airstrike launched! Targeting enemy ships.');
-  // In a real game, this would deal damage to nearby enemy ship cells
-  // For now, it just shows a message
 }
 
 function handleEnemyGridClick(row, col) {
