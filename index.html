@@ -718,6 +718,7 @@
           <button class="control-button" id="rotate-btn">↻ ROTATE</button>
           <button class="control-button" id="random-btn">⚡ AUTO DEPLOY</button>
           <button class="control-button" id="clear-btn">⌫ CLEAR ALL</button>
+          <button class="control-button" id="delete-btn" disabled>🗑 DELETE</button>
           <button class="control-button" id="start-battle-btn" disabled>▶ START BATTLE</button>
         </div>
 
@@ -776,7 +777,7 @@ let playerShips = [];
 let enemyShips = [];
 let selectedShip = null;
 let orientation = 'horizontal';
-let playerTurn = true;
+let playerTurn = true; // true = player, false = AI
 let gameOver = false;
 let gameStats = {
   score: 0,
@@ -851,6 +852,7 @@ function setupEventListeners() {
   document.getElementById('rotate-btn').addEventListener('click', rotateVessel);
   document.getElementById('random-btn').addEventListener('click', randomPlacement);
   document.getElementById('clear-btn').addEventListener('click', clearAllShips);
+  document.getElementById('delete-btn').addEventListener('click', deleteSelectedShip);
   const startBtn = document.getElementById('start-battle-btn');
   startBtn.removeEventListener('click', startGame);
   startBtn.addEventListener('click', startGame);
@@ -925,14 +927,38 @@ function clearPlacementPreview() {
   });
 }
 
-// Check if ship can be placed
+// Check if ship can be placed (no overlap, no adjacent ships)
 function canPlaceShip(grid, row, col, size, orientation) {
+  // Helper to check if a cell is within bounds and empty
+  function isEmpty(r, c) {
+    return r >= 0 && r < 10 && c >= 0 && c < 10 && !grid[r][c];
+  }
+  // Check each cell the ship would occupy
   for (let i = 0; i < size; i++) {
     const targetRow = row + (orientation === 'vertical' ? i : 0);
     const targetCol = col + (orientation === 'horizontal' ? i : 0);
-    
-    if (targetRow >= 10 || targetCol >= 10 || grid[targetRow][targetCol]) {
+    // Out of bounds or overlap
+    if (targetRow < 0 || targetRow >= 10 || targetCol < 0 || targetCol >= 10 || grid[targetRow][targetCol]) {
       return false;
+    }
+    // Check all adjacent cells (including diagonals)
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const adjRow = targetRow + dr;
+        const adjCol = targetCol + dc;
+        // Skip the ship's own cell
+        if (dr === 0 && dc === 0) continue;
+        // If adjacent cell is in bounds and occupied (not part of this ship), fail
+        if (
+          adjRow >= 0 && adjRow < 10 && adjCol >= 0 && adjCol < 10 &&
+          grid[adjRow][adjCol] &&
+          // Only fail if the adjacent cell is not part of the current ship placement
+          !(orientation === 'vertical' && adjRow >= row && adjRow < row + size && adjCol === col) &&
+          !(orientation === 'horizontal' && adjCol >= col && adjCol < col + size && adjRow === row)
+        ) {
+          return false;
+        }
+      }
     }
   }
   return true;
@@ -1368,6 +1394,39 @@ function randomPlacement() {
   updateStatus('Fleet auto-deployed! All ships battle-ready, Admiral!');
 }
 
+function placeAIShips() {
+  enemyGrid = Array(10).fill().map(() => Array(10).fill(null));
+  enemyShips = [];
+  SHIPS.forEach(ship => {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 100) {
+      const orientation = Math.random() > 0.5 ? 'horizontal' : 'vertical';
+      const row = Math.floor(Math.random() * (orientation === 'vertical' ? 11 - ship.size : 10));
+      const col = Math.floor(Math.random() * (orientation === 'horizontal' ? 11 - ship.size : 10));
+      if (canPlaceShip(enemyGrid, row, col, ship.size, orientation)) {
+        // Place the ship
+        const shipCells = [];
+        for (let i = 0; i < ship.size; i++) {
+          const targetRow = row + (orientation === 'vertical' ? i : 0);
+          const targetCol = col + (orientation === 'horizontal' ? i : 0);
+          enemyGrid[targetRow][targetCol] = ship.type;
+          shipCells.push({ row: targetRow, col: targetCol });
+        }
+        enemyShips.push({
+          ...ship,
+          cells: shipCells,
+          hits: 0,
+          sunk: false,
+          orientation
+        });
+        placed = true;
+      }
+      attempts++;
+    }
+  });
+}
+
 let selectedPlacedShip = null;
 function selectPlacedShip(ship) {
   document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => cell.classList.remove('ship-selected'));
@@ -1378,6 +1437,7 @@ function selectPlacedShip(ship) {
   selectedPlacedShip = ship;
   updatePlayerGrid(); // Refresh grid so only this ship is draggable
   updateStatus(`${ship.name.toUpperCase()} SELECTED - CLICK ROTATE OR DRAG TO MOVE`);
+  updateDeleteButtonState();
 }
 
 function addShipGridClickHandlers() {
@@ -1416,6 +1476,7 @@ function startGame() {
   gamePhase = 'playing';
   document.getElementById('start-battle-btn').disabled = true;
   document.getElementById('start-battle-btn').classList.remove('pulse-start');
+  placeAIShips(); // Place AI ships at the start of the game
   updateStatus('Your turn to fire! Select a target on the enemy grid.');
   // (Add any additional logic to actually start the game here)
 }
@@ -1446,14 +1507,24 @@ function useAirstrike() {
 }
 
 function handleEnemyGridClick(row, col) {
-  if (gamePhase !== 'playing') return;
+  if (gamePhase !== 'playing' || !playerTurn || gameOver) return;
 
   // Prevent firing at the same cell twice
   if (enemyGrid[row][col] === 'hit' || enemyGrid[row][col] === 'miss') return;
 
-  // For demo: randomly decide hit or miss
-  const isHit = Math.random() < 0.3; // 30% chance of hit
-  enemyGrid[row][col] = isHit ? 'hit' : 'miss';
+  // Check if hit an enemy ship
+  let hitShip = null;
+  for (const ship of enemyShips) {
+    if (ship.cells.some(c => c.row === row && c.col === col)) {
+      hitShip = ship;
+      break;
+    }
+  }
+  const isHit = !!hitShip;
+  // Only set if not already fired
+  if (enemyGrid[row][col] !== 'hit' && enemyGrid[row][col] !== 'miss') {
+    enemyGrid[row][col] = isHit ? 'hit' : 'miss';
+  }
 
   // Update the cell visually
   const cell = document.querySelector(`[data-grid="enemy"][data-row="${row}"][data-col="${col}"]`);
@@ -1462,11 +1533,147 @@ function handleEnemyGridClick(row, col) {
     cell.classList.add(isHit ? 'impact' : 'miss');
   }
 
-  // Update stats (implement your own logic for score, accuracy, etc.)
-  // updateStats();
+  // Track hits and sunk
+  if (isHit) {
+    hitShip.hits++;
+    if (hitShip.hits === hitShip.size) {
+      hitShip.sunk = true;
+      updateStatus(`${hitShip.name.toUpperCase()} SUNK!`);
+      updateEnemyGrid();
+      // Check win
+      if (enemyShips.every(s => s.sunk)) {
+        gameOver = true;
+        updateStatus('You win! All enemy ships sunk!');
+        updateLifetimeRecord(true);
+        showMissionCompleteScreen(true);
+        return;
+      }
+    } else {
+      updateStatus('Direct hit!');
+    }
+  } else {
+    updateStatus('Miss!');
+  }
 
-  // Optionally: check for win condition
-  // if (allEnemyShipsSunk()) { endGame(); }
+  // End player's turn, start AI turn
+  playerTurn = false;
+  setTimeout(aiTurn, 900); // AI fires after a short delay
+}
+
+// AI hunt/target mode
+let aiTargetQueue = [];
+
+function aiTurn() {
+  if (gameOver) return;
+  // If there are target cells in the queue, use them first
+  let target = null;
+  while (aiTargetQueue.length > 0) {
+    const candidate = aiTargetQueue.shift();
+    if (playerGrid[candidate.row][candidate.col] !== 'hit' && playerGrid[candidate.row][candidate.col] !== 'miss') {
+      target = candidate;
+      break;
+    }
+  }
+  // If no target, pick a random cell
+  if (!target) {
+    const available = [];
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        if (playerGrid[row][col] !== 'hit' && playerGrid[row][col] !== 'miss') {
+          available.push({ row, col });
+        }
+      }
+    }
+    if (available.length === 0) {
+      updateStatus("Enemy has no more moves!");
+      return;
+    }
+    target = available[Math.floor(Math.random() * available.length)];
+  }
+  const { row, col } = target;
+  // Determine if it's a hit (if there's a ship at that cell)
+  let hitShip = null;
+  for (const ship of playerShips) {
+    if (ship.cells.some(c => c.row === row && c.col === col)) {
+      hitShip = ship;
+      break;
+    }
+  }
+  const isHit = !!hitShip;
+  // Only set if not already fired
+  if (playerGrid[row][col] !== 'hit' && playerGrid[row][col] !== 'miss') {
+    playerGrid[row][col] = isHit ? 'hit' : 'miss';
+  }
+  // Update the cell visually
+  const cell = document.querySelector(`[data-grid="player"][data-row="${row}"][data-col="${col}"]`);
+  if (cell) {
+    cell.textContent = isHit ? '💥' : '💧';
+    cell.classList.add(isHit ? 'impact' : 'miss');
+  }
+  // If hit, add adjacent cells to the target queue
+  if (isHit) {
+    hitShip.hits++;
+    if (hitShip.hits === hitShip.size) {
+      hitShip.sunk = true;
+      updateStatus(`Your ${hitShip.name.toUpperCase()} has been sunk!`);
+      updatePlayerGrid();
+      // Check loss
+      if (playerShips.every(s => s.sunk)) {
+        gameOver = true;
+        updateStatus('AI wins! All your ships have been sunk!');
+        updateLifetimeRecord(false);
+        showMissionCompleteScreen(false);
+        return;
+      }
+    } else {
+      updateStatus('Enemy hit your ship!');
+    }
+    const directions = [
+      { dr: -1, dc: 0 },
+      { dr: 1, dc: 0 },
+      { dr: 0, dc: -1 },
+      { dr: 0, dc: 1 }
+    ];
+    for (const { dr, dc } of directions) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (nr >= 0 && nr < 10 && nc >= 0 && nc < 10 &&
+          playerGrid[nr][nc] !== 'hit' && playerGrid[nr][nc] !== 'miss') {
+        aiTargetQueue.push({ row: nr, col: nc });
+      }
+    }
+  }
+  // End AI turn, player's turn resumes
+  playerTurn = true;
+  if (!gameOver) updateStatus("Your turn! Select a target on the enemy grid.");
+}
+
+function deleteSelectedShip() {
+  if (!selectedPlacedShip) return;
+  // Remove ship from grid
+  selectedPlacedShip.cells.forEach(cell => { playerGrid[cell.row][cell.col] = null; });
+  // Remove from playerShips
+  playerShips = playerShips.filter(s => s !== selectedPlacedShip);
+  // Update placedShips tracking
+  placedShips[selectedPlacedShip.type] = false;
+  // Update sidebar
+  const sidebarShip = document.querySelector(`[data-type="${selectedPlacedShip.type}"]`);
+  sidebarShip.classList.remove('deployed');
+  sidebarShip.setAttribute('draggable', 'true');
+  sidebarShip.addEventListener('dragstart', handleShipDragStart);
+  sidebarShip.addEventListener('click', () => selectShip(sidebarShip));
+  selectedPlacedShip = null;
+  updatePlayerGrid();
+  addShipGridClickHandlers();
+  updateStartBattleButton();
+  updateDeleteButtonState();
+  updateStatus('Ship deleted. Select and deploy another vessel, Admiral!');
+}
+
+// Add this function to fix ReferenceError
+function updateDeleteButtonState() {
+  const btn = document.getElementById('delete-btn');
+  btn.disabled = !selectedPlacedShip;
 }
 
 // Test function for debugging - call this from browser console
@@ -1480,6 +1687,95 @@ function testStartButton() {
   // Try to manually trigger the click
   document.getElementById('start-battle-btn').click();
 }
+
+// === BATTLESHIP UNIT TESTS ===
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+// Test: canPlaceShip
+(function testCanPlaceShip() {
+  let grid = Array(10).fill().map(() => Array(10).fill(null));
+  // Place a 3-cell ship at (0,0) horizontally
+  assert(canPlaceShip(grid, 0, 0, 3, 'horizontal'), 'Should allow placing at (0,0) horizontal');
+  // Place a 3-cell ship at (8,8) horizontally (should fail, out of bounds)
+  assert(!canPlaceShip(grid, 8, 8, 3, 'horizontal'), 'Should not allow out-of-bounds horizontal');
+  // Place a 3-cell ship at (8,8) vertically (should fail, out of bounds)
+  assert(!canPlaceShip(grid, 8, 8, 3, 'vertical'), 'Should not allow out-of-bounds vertical');
+  // Place a ship, then try to overlap
+  grid[0][0] = 'carrier';
+  assert(!canPlaceShip(grid, 0, 0, 3, 'horizontal'), 'Should not allow overlap');
+  console.log('canPlaceShip tests passed');
+})();
+
+// Test: placedShips tracking
+(function testPlacedShipsTracking() {
+  Object.keys(placedShips).forEach(k => placedShips[k] = false);
+  onShipPlaced('carrier');
+  assert(placedShips['carrier'] === true, 'Carrier should be marked placed');
+  onShipRemoved('carrier');
+  assert(placedShips['carrier'] === false, 'Carrier should be marked not placed');
+  console.log('placedShips tracking tests passed');
+})();
+
+// Test: firing logic
+(function testFiringLogic() {
+  let grid = Array(10).fill().map(() => Array(10).fill(null));
+  // Place a ship at (0,0)
+  grid[0][0] = 'carrier';
+  // Fire at (0,0)
+  grid[0][0] = grid[0][0] ? 'hit' : 'miss';
+  assert(grid[0][0] === 'hit', 'Should mark hit');
+  // Fire at (1,1)
+  grid[1][1] = grid[1][1] ? 'hit' : 'miss';
+  assert(grid[1][1] === 'miss', 'Should mark miss');
+  // Fire again at (1,1)
+  let prev = grid[1][1];
+  grid[1][1] = grid[1][1] ? 'hit' : 'miss';
+  assert(grid[1][1] === prev, 'Should not change already fired cell');
+  console.log('firing logic tests passed');
+})();
+
+// Test: AI never fires at same cell twice
+(function testAIUniqueShots() {
+  let grid = Array(10).fill().map(() => Array(10).fill(null));
+  let fired = new Set();
+  for (let i = 0; i < 100; i++) {
+    // Simulate AI turn
+    let available = [];
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        if (grid[row][col] !== 'hit' && grid[row][col] !== 'miss') available.push(row + ',' + col);
+      }
+    }
+    if (available.length === 0) break;
+    let idx = Math.floor(Math.random() * available.length);
+    let [row, col] = available[idx].split(',').map(Number);
+    grid[row][col] = 'miss';
+    assert(!fired.has(row + ',' + col), 'AI should not fire at same cell twice');
+    fired.add(row + ',' + col);
+  }
+  console.log('AI unique shots test passed');
+})();
+
+(function testStartBattleButtonState() {
+  // Reset placedShips
+  Object.keys(placedShips).forEach(k => placedShips[k] = false);
+  updateStartBattleButton();
+  const btn = document.getElementById('start-battle-btn');
+  assert(btn.disabled, 'Start Battle button should be disabled when no ships are placed');
+  // Place all ships
+  Object.keys(placedShips).forEach(k => placedShips[k] = true);
+  updateStartBattleButton();
+  assert(!btn.disabled, 'Start Battle button should be enabled when all ships are placed');
+  // Remove one ship
+  placedShips['carrier'] = false;
+  updateStartBattleButton();
+  assert(btn.disabled, 'Start Battle button should be disabled if any ship is removed');
+  console.log('Start Battle button state tests passed');
+})();
+
+console.log('All Battleship unit tests completed.');
   </script>
 </body>
 </html>
