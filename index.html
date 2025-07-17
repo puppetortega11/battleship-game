@@ -760,666 +760,726 @@
   </div>
 
   <script>
-    // Game state
-    let gameMode = 'classic';
-    let gamePhase = 'setup';
-    let playerGrid = Array(10).fill().map(() => Array(10).fill(null));
-    let enemyGrid = Array(10).fill().map(() => Array(10).fill(null));
-    let playerShips = [];
-    let enemyShips = [];
-    let selectedShip = null;
-    let orientation = 'horizontal';
-    let playerTurn = true;
-    let gameOver = false;
-    let gameStats = {
-      score: 0,
-      shotsFired: 0,
-      hits: 0,
-      enemyShipsRemaining: 5
-    };
+function updateStatus(message) {
+  const statusDiv = document.getElementById('status');
+  if (statusDiv) {
+    statusDiv.textContent = message;
+  }
+}
 
-    const SHIPS = [
-      { type: 'carrier', size: 5, name: 'Aircraft Carrier' },
-      { type: 'battleship', size: 4, name: 'Battleship' },
-      { type: 'cruiser', size: 3, name: 'Cruiser' },
-      { type: 'submarine', size: 3, name: 'Submarine' },
-      { type: 'destroyer', size: 2, name: 'Destroyer' }
-    ];
+// Game state
+let gameMode = 'classic';
+let gamePhase = 'setup';
+let playerGrid = Array(10).fill().map(() => Array(10).fill(null));
+let enemyGrid = Array(10).fill().map(() => Array(10).fill(null));
+let playerShips = [];
+let enemyShips = [];
+let selectedShip = null;
+let orientation = 'horizontal';
+let playerTurn = true;
+let gameOver = false;
+let gameStats = {
+  score: 0,
+  shotsFired: 0,
+  hits: 0,
+  enemyShipsRemaining: 5
+};
 
-    // Initialize game
-    function initGame() {
-      createGrids();
-      setupEventListeners();
-      updateStatus('Select your ships and deploy them on your grid, Admiral!');
-    }
+const SHIPS = [
+  { type: 'carrier', size: 5, name: 'Aircraft Carrier' },
+  { type: 'battleship', size: 4, name: 'Battleship' },
+  { type: 'cruiser', size: 3, name: 'Cruiser' },
+  { type: 'submarine', size: 3, name: 'Submarine' },
+  { type: 'destroyer', size: 2, name: 'Destroyer' }
+];
 
-    // Create grid displays
-    function createGrids() {
-      createGrid('player-grid', 'player');
-      createGrid('enemy-grid', 'enemy');
-    }
+// Initialize game
+function initGame() {
+  createGrids();
+  setupEventListeners();
+  updateStatus('Select your ships and deploy them on your grid, Admiral!');
+}
 
-    function createGrid(containerId, gridType) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = '';
+// Create grid displays
+function createGrids() {
+  createGrid('player-grid', 'player');
+  createGrid('enemy-grid', 'enemy');
+}
+
+function createGrid(containerId, gridType) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  
+  for (let row = 0; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+      const cell = document.createElement('div');
+      cell.className = 'radar-cell';
+      cell.dataset.row = row;
+      cell.dataset.col = col;
+      cell.dataset.grid = gridType;
       
-      for (let row = 0; row < 10; row++) {
-        for (let col = 0; col < 10; col++) {
-          const cell = document.createElement('div');
-          cell.className = 'radar-cell';
-          cell.dataset.row = row;
-          cell.dataset.col = col;
-          cell.dataset.grid = gridType;
-          
-          if (gridType === 'player') {
-            // Only allow drop events for drag-and-drop
-            cell.addEventListener('dragover', handleCellDragOver);
-            cell.addEventListener('drop', handleCellDrop);
-          } else if (gridType === 'enemy' && gamePhase === 'playing') {
-            cell.addEventListener('click', () => handleEnemyGridClick(row, col));
-          }
-          
-          container.appendChild(cell);
-        }
-      }
-    }
-
-    // Setup event listeners
-    function setupEventListeners() {
-      // Mode selection
-      document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => selectGameMode(btn.dataset.mode));
-      });
-
-      // Ship selection (click)
-      document.querySelectorAll('.ship-selector').forEach(ship => {
-        ship.addEventListener('click', () => selectShip(ship));
-        // Drag-and-drop events for ships
-        ship.addEventListener('dragstart', handleShipDragStart);
-        ship.addEventListener('dragend', handleShipDragEnd);
-      });
-
-      // Control buttons
-      document.getElementById('rotate-btn').addEventListener('click', rotateVessel);
-      document.getElementById('random-btn').addEventListener('click', randomPlacement);
-      document.getElementById('clear-btn').addEventListener('click', clearAllShips);
-      const startBtn = document.getElementById('start-battle-btn');
-      startBtn.removeEventListener('click', startGame);
-      startBtn.addEventListener('click', startGame);
-
-      // Powerups
-      document.getElementById('sonar-btn').addEventListener('click', useSonar);
-      document.getElementById('airstrike-btn').addEventListener('click', useAirstrike);
-
-      // Drag-and-drop events for player grid cells
-      document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
+      if (gridType === 'player') {
+        // Only allow drop events for drag-and-drop
         cell.addEventListener('dragover', handleCellDragOver);
         cell.addEventListener('drop', handleCellDrop);
-      });
-    }
-
-    // Game mode selection
-    function selectGameMode(mode) {
-      gameMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-      });
-      
-      const powerupsDiv = document.getElementById('tactical-systems');
-      powerupsDiv.style.display = mode === 'advanced' ? 'block' : 'none';
-      
-      updateStatus(mode === 'classic' 
-        ? 'Classic Mode: Traditional naval warfare!' 
-        : 'Advanced Mode: Strategic warfare with tactical support!');
-    }
-
-    // Ship selection
-    function selectShip(shipElement) {
-      if (shipElement.classList.contains('deployed')) return;
-      
-      document.querySelectorAll('.ship-selector').forEach(s => s.classList.remove('selected'));
-      shipElement.classList.add('selected');
-      
-      const shipType = shipElement.dataset.type;
-      selectedShip = SHIPS.find(s => s.type === shipType);
-      updateStatus(`${selectedShip.name} selected! Click on your grid to deploy (${orientation}).`);
-    }
-
-    // Show placement preview
-    function showPlacementPreview(row, col) {
-      // Only show preview if dragging a ship or moving a ship
-      if (!(draggedShip || movingShip)) return;
-      let ship = draggedShip || movingShip || selectedShip || selectedPlacedShip;
-      if (!ship || gamePhase !== 'setup') return;
-      clearPlacementPreview();
-      // For moving a placed ship, use its orientation and size
-      const orientationToUse = ship.orientation || orientation;
-      const canPlace = canPlaceShip(playerGrid, row, col, ship.size, orientationToUse);
-      for (let i = 0; i < ship.size; i++) {
-        const targetRow = row + (orientationToUse === 'vertical' ? i : 0);
-        const targetCol = col + (orientationToUse === 'horizontal' ? i : 0);
-        if (targetRow < 10 && targetCol < 10) {
-          const cell = document.querySelector(`[data-grid="player"][data-row="${targetRow}"][data-col="${targetCol}"]`);
-          if (cell) {
-            if (canPlace) {
-              cell.classList.add('selected');
-            } else {
-              cell.classList.add('invalid-target');
-            }
-          }
-        }
-      }
-    }
-
-    function clearPlacementPreview() {
-      document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
-        cell.classList.remove('selected', 'invalid-target');
-      });
-    }
-
-    // Check if ship can be placed
-    function canPlaceShip(grid, row, col, size, orientation) {
-      for (let i = 0; i < size; i++) {
-        const targetRow = row + (orientation === 'vertical' ? i : 0);
-        const targetCol = col + (orientation === 'horizontal' ? i : 0);
-        
-        if (targetRow >= 10 || targetCol >= 10 || grid[targetRow][targetCol]) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    // Handle player grid click (ship placement)
-    function handlePlayerGridClick(row, col) {
-      if (!selectedShip || gamePhase !== 'setup') return;
-      
-      if (!canPlaceShip(playerGrid, row, col, selectedShip.size, orientation)) {
-        updateStatus('Cannot deploy there, Admiral! Choose different coordinates.');
-        return;
+      } else if (gridType === 'enemy') {
+        // Always attach click handler, but only allow firing if gamePhase === 'playing'
+        cell.addEventListener('click', () => handleEnemyGridClick(row, col));
       }
       
-      placeShip(row, col);
+      container.appendChild(cell);
     }
+  }
+}
 
-    // Place ship on grid
-    function placeShip(row, col) {
-      // Prevent placing more than 5 ships
-      if (playerShips.length >= 5) {
-        updateStatus('All ships already deployed!');
-        return;
-      }
-      // Prevent placing the same ship more than once
-      if (playerShips.some(s => s.type === selectedShip.type)) {
-        updateStatus('This ship is already deployed!');
-        return;
-      }
-      const shipCells = [];
-      
-      for (let i = 0; i < selectedShip.size; i++) {
-        const targetRow = row + (orientation === 'vertical' ? i : 0);
-        const targetCol = col + (orientation === 'horizontal' ? i : 0);
-        
-        playerGrid[targetRow][targetCol] = selectedShip.type;
-        shipCells.push({ row: targetRow, col: targetCol });
-      }
-      
-      playerShips.push({
-        ...selectedShip,
-        cells: shipCells,
-        hits: 0,
-        sunk: false,
-        orientation // make sure orientation is tracked
-      });
+// Setup event listeners
+function setupEventListeners() {
+  // Mode selection
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectGameMode(btn.dataset.mode));
+  });
 
-      // Mark ship as placed in the sidebar
-      const sidebarShip = document.querySelector(`[data-type="${selectedShip.type}"]`);
-      sidebarShip.classList.add('deployed');
-      sidebarShip.setAttribute('draggable', 'false');
-      sidebarShip.removeEventListener('dragstart', handleShipDragStart);
-      sidebarShip.removeEventListener('click', selectShip);
-      // Automatically select the newly placed ship for rotation
-      selectPlacedShip(playerShips[playerShips.length - 1]);
-      selectedShip = null;
-      
-      updatePlayerGrid();
-      clearPlacementPreview();
-      addShipGridClickHandlers(); // ensure click handlers are refreshed
-      updateStartBattleButton(); // Update button state after placing a ship
-    }
+  // Ship selection (click)
+  document.querySelectorAll('.ship-selector').forEach(ship => {
+    ship.addEventListener('click', () => selectShip(ship));
+    // Drag-and-drop events for ships
+    ship.addEventListener('dragstart', handleShipDragStart);
+    ship.addEventListener('dragend', handleShipDragEnd);
+  });
 
-    // Update grid displays
-    function updatePlayerGrid() {
-      for (let row = 0; row < 10; row++) {
-        for (let col = 0; col < 10; col++) {
-          const cell = document.querySelector(`[data-grid="player"][data-row="${row}"][data-col="${col}"]`);
-          const cellValue = playerGrid[row][col];
-          cell.className = 'radar-cell';
-          cell.removeAttribute('draggable'); // Reset draggable
-          cell.ondragstart = null;
-          cell.ondragend = null;
-          if (cellValue && cellValue !== 'hit' && cellValue !== 'miss') {
-            cell.classList.add('vessel');
-            // Make ship cells draggable
-            cell.setAttribute('draggable', 'true');
-            cell.ondragstart = (e) => handlePlacedShipDragStart(e, row, col);
-            cell.ondragend = handlePlacedShipDragEnd;
-          } else if (cellValue === 'hit') {
-            cell.classList.add('impact');
-            cell.textContent = '💥';
-          } else if (cellValue === 'miss') {
-            cell.classList.add('miss');
-            cell.textContent = '💧';
-          }
-        }
-      }
-    }
+  // Control buttons
+  document.getElementById('rotate-btn').addEventListener('click', rotateVessel);
+  document.getElementById('random-btn').addEventListener('click', randomPlacement);
+  document.getElementById('clear-btn').addEventListener('click', clearAllShips);
+  const startBtn = document.getElementById('start-battle-btn');
+  startBtn.removeEventListener('click', startGame);
+  startBtn.addEventListener('click', startGame);
 
-    function updateEnemyGrid() {
-      for (let row = 0; row < 10; row++) {
-        for (let col = 0; col < 10; col++) {
-          const cell = document.querySelector(`[data-grid="enemy"][data-row="${row}"][data-col="${col}"]`);
-          const cellValue = enemyGrid[row][col];
-          
-          cell.className = 'radar-cell';
-          if (cellValue === 'hit') {
-            cell.classList.add('impact');
-            cell.textContent = '💥';
-          } else if (cellValue === 'miss') {
-            cell.classList.add('miss');
-            cell.textContent = '💧';
-          }
-          
-          // Check if part of sunk ship
-          const sunkShip = enemyShips.find(ship => 
-            ship.sunk && ship.cells.some(c => c.row === row && c.col === col)
-          );
-          if (sunkShip) {
-            cell.classList.add('destroyed');
-            cell.textContent = '🔥';
-          }
-        }
-      }
-    }
+  // Powerups
+  document.getElementById('sonar-btn').addEventListener('click', useSonar);
+  document.getElementById('airstrike-btn').addEventListener('click', useAirstrike);
 
-    // Control functions
-    function rotateVessel() {
-      // Only rotate if a placed ship is selected
-      if (selectedPlacedShip) {
-        const old = selectedPlacedShip;
-        // Remove ship from grid
-        old.cells.forEach(cell => { playerGrid[cell.row][cell.col] = null; });
-        // Try new orientation
-        const newOrientation = old.orientation === 'horizontal' ? 'vertical' : 'horizontal';
-        const base = old.cells[0];
-        let canRotate = true;
-        let newCells = [];
-        for (let i = 0; i < old.size; i++) {
-          const row = newOrientation === 'vertical' ? base.row + i : base.row;
-          const col = newOrientation === 'horizontal' ? base.col + i : base.col;
-          if (row >= 10 || col >= 10 || playerGrid[row][col]) {
-            canRotate = false;
-            break;
-          }
-          newCells.push({ row, col });
-        }
-        if (canRotate) {
-          // Place ship in new orientation
-          newCells.forEach(cell => { playerGrid[cell.row][cell.col] = old.type; });
-          old.cells = newCells;
-          old.orientation = newOrientation;
-          updatePlayerGrid();
-          addShipGridClickHandlers();
-          updateStatus(`${old.name.toUpperCase()} ROTATED TO ${newOrientation.toUpperCase()}`);
+  // Drag-and-drop events for player grid cells
+  document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
+    cell.addEventListener('dragover', handleCellDragOver);
+    cell.addEventListener('drop', handleCellDrop);
+  });
+}
+
+// Game mode selection
+function selectGameMode(mode) {
+  gameMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  
+  const powerupsDiv = document.getElementById('tactical-systems');
+  powerupsDiv.style.display = mode === 'advanced' ? 'block' : 'none';
+  
+  updateStatus(mode === 'classic' 
+    ? 'Classic Mode: Traditional naval warfare!' 
+    : 'Advanced Mode: Strategic warfare with tactical support!');
+}
+
+// Ship selection
+function selectShip(shipElement) {
+  if (shipElement.classList.contains('deployed')) return;
+  
+  document.querySelectorAll('.ship-selector').forEach(s => s.classList.remove('selected'));
+  shipElement.classList.add('selected');
+  
+  const shipType = shipElement.dataset.type;
+  selectedShip = SHIPS.find(s => s.type === shipType);
+  updateStatus(`${selectedShip.name} selected! Click on your grid to deploy (${orientation}).`);
+}
+
+// Show placement preview
+function showPlacementPreview(row, col) {
+  // Only show preview if dragging a ship or moving a ship
+  if (!(draggedShip || movingShip)) return;
+  let ship = draggedShip || movingShip || selectedShip || selectedPlacedShip;
+  if (!ship || gamePhase !== 'setup') return;
+  clearPlacementPreview();
+  // For moving a placed ship, use its orientation and size
+  const orientationToUse = ship.orientation || orientation;
+  const canPlace = canPlaceShip(playerGrid, row, col, ship.size, orientationToUse);
+  for (let i = 0; i < ship.size; i++) {
+    const targetRow = row + (orientationToUse === 'vertical' ? i : 0);
+    const targetCol = col + (orientationToUse === 'horizontal' ? i : 0);
+    if (targetRow < 10 && targetCol < 10) {
+      const cell = document.querySelector(`[data-grid="player"][data-row="${targetRow}"][data-col="${targetCol}"]`);
+      if (cell) {
+        if (canPlace) {
+          cell.classList.add('selected');
         } else {
-          // Restore old placement
-          old.cells.forEach(cell => { playerGrid[cell.row][cell.col] = old.type; });
-          updateStatus('NOT ENOUGH SPACE TO ROTATE HERE!');
-        }
-        return;
-      }
-      // If no placed ship is selected, do nothing and show a message
-      updateStatus('SELECT A PLACED SHIP ON THE GRID TO ROTATE IT.');
-    }
-
-    // Lifetime record logic
-    function updateLifetimeRecordDisplay() {
-      const gamesPlayed = parseInt(localStorage.getItem('battleship_gamesPlayed') || '0', 10);
-      const gamesWon = parseInt(localStorage.getItem('battleship_gamesWon') || '0', 10);
-      const winPct = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
-      document.getElementById('games-played').textContent = `Games Played: ${gamesPlayed}`;
-      document.getElementById('games-won').textContent = `Win %: ${winPct}%`;
-    }
-    // Call on load
-    updateLifetimeRecordDisplay();
-    // Update after game ends
-    function updateLifetimeRecord(won) {
-      let gamesPlayed = parseInt(localStorage.getItem('battleship_gamesPlayed') || '0', 10);
-      let gamesWon = parseInt(localStorage.getItem('battleship_gamesWon') || '0', 10);
-      gamesPlayed++;
-      if (won) gamesWon++;
-      localStorage.setItem('battleship_gamesPlayed', gamesPlayed);
-      localStorage.setItem('battleship_gamesWon', gamesWon);
-      updateLifetimeRecordDisplay();
-    }
-
-    // Initialize game when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-      initGame();
-    });
-
-    // --- Drag-and-drop handlers for ships ---
-    let draggedShip = null;
-    function handleShipDragStart(e) {
-      if (this.classList.contains('deployed')) {
-        e.preventDefault();
-        return;
-      }
-      draggedShip = SHIPS.find(s => s.type === this.dataset.type);
-      // Store ship type and orientation in dataTransfer
-      e.dataTransfer.setData('text/plain', JSON.stringify({
-        type: draggedShip.type,
-        size: draggedShip.size,
-        orientation: 'horizontal' // Always start horizontal for drag
-      }));
-    }
-    function handleShipDragEnd(e) {
-      draggedShip = null;
-      clearPlacementPreview();
-    }
-    // --- Drag-and-drop handlers for moving placed ships ---
-    let movingShip = null;
-    let movingShipOriginalCells = null;
-    function handlePlacedShipDragStart(e, row, col) {
-      // Only allow drag if this cell is part of a ship
-      const shipType = playerGrid[row][col];
-      if (!shipType) return;
-      const ship = playerShips.find(s => s.type === shipType && s.cells.some(c => c.row === row && c.col === col));
-      if (!ship) return;
-      movingShip = ship;
-      movingShipOriginalCells = [...ship.cells.map(c => ({...c}))];
-      // Remove ship from grid for preview
-      ship.cells.forEach(cell => { playerGrid[cell.row][cell.col] = null; });
-      updatePlayerGrid();
-      addShipGridClickHandlers();
-      // Set dataTransfer for drop
-      e.dataTransfer.setData('text/plain', JSON.stringify({
-        type: ship.type,
-        size: ship.size,
-        orientation: ship.orientation
-      }));
-      // Show preview at current location
-      const base = movingShipOriginalCells[0];
-      showPlacementPreview(base.row, base.col);
-    }
-    function handlePlacedShipDragEnd(e) {
-      // If not dropped in a valid spot, restore ship
-      if (movingShip && movingShipOriginalCells) {
-        // If the ship is not on the grid (cells are empty), restore
-        if (!movingShip.cells.some(cell => playerGrid[cell.row][cell.col] === movingShip.type)) {
-          movingShipOriginalCells.forEach(cell => { playerGrid[cell.row][cell.col] = movingShip.type; });
-          movingShip.cells = movingShipOriginalCells;
-          updatePlayerGrid();
-          addShipGridClickHandlers();
+          cell.classList.add('invalid-target');
         }
       }
-      movingShip = null;
-      movingShipOriginalCells = null;
     }
-    // --- Drag-and-drop handlers for grid cells ---
-    function handleCellDragOver(e) {
-      e.preventDefault(); // Allow drop
-      let dragData = null;
-      try {
-        dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
-      } catch {}
-      if (!dragData || gamePhase !== 'setup') return;
-      const row = parseInt(this.dataset.row);
-      const col = parseInt(this.dataset.col);
-      const canDeploy = canPlaceShip(playerGrid, row, col, dragData.size, dragData.orientation);
-      selectedShip = draggedShip || movingShip;
-      showPlacementPreview(row, col);
-    }
-    function handleCellDrop(e) {
-      e.preventDefault();
-      let dragData = null;
-      try {
-        dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
-      } catch {}
-      if (!dragData || gamePhase !== 'setup') return;
-      const row = parseInt(this.dataset.row);
-      const col = parseInt(this.dataset.col);
+  }
+}
 
-      // Helper to try placing at a given cell
-      function tryPlaceAt(r, c) {
-        return canPlaceShip(playerGrid, r, c, dragData.size, dragData.orientation);
+function clearPlacementPreview() {
+  document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
+    cell.classList.remove('selected', 'invalid-target');
+  });
+}
+
+// Check if ship can be placed
+function canPlaceShip(grid, row, col, size, orientation) {
+  for (let i = 0; i < size; i++) {
+    const targetRow = row + (orientation === 'vertical' ? i : 0);
+    const targetCol = col + (orientation === 'horizontal' ? i : 0);
+    
+    if (targetRow >= 10 || targetCol >= 10 || grid[targetRow][targetCol]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Handle player grid click (ship placement)
+function handlePlayerGridClick(row, col) {
+  if (!selectedShip || gamePhase !== 'setup') return;
+  
+  if (!canPlaceShip(playerGrid, row, col, selectedShip.size, orientation)) {
+    updateStatus('Cannot deploy there, Admiral! Choose different coordinates.');
+    return;
+  }
+  
+  placeShip(row, col);
+}
+
+// Place ship on grid
+function placeShip(row, col) {
+  // Prevent placing more than 5 ships
+  if (playerShips.length >= 5) {
+    updateStatus('All ships already deployed!');
+    return;
+  }
+  // Prevent placing the same ship more than once
+  if (playerShips.some(s => s.type === selectedShip.type)) {
+    updateStatus('This ship is already deployed!');
+    return;
+  }
+  const shipCells = [];
+  
+  for (let i = 0; i < selectedShip.size; i++) {
+    const targetRow = row + (orientation === 'vertical' ? i : 0);
+    const targetCol = col + (orientation === 'horizontal' ? i : 0);
+    
+    playerGrid[targetRow][targetCol] = selectedShip.type;
+    shipCells.push({ row: targetRow, col: targetCol });
+  }
+  
+  playerShips.push({
+    ...selectedShip,
+    cells: shipCells,
+    hits: 0,
+    sunk: false,
+    orientation // make sure orientation is tracked
+  });
+
+  // Mark ship as placed in the sidebar
+  const sidebarShip = document.querySelector(`[data-type="${selectedShip.type}"]`);
+  sidebarShip.classList.add('deployed');
+  sidebarShip.setAttribute('draggable', 'false');
+  sidebarShip.removeEventListener('dragstart', handleShipDragStart);
+  sidebarShip.removeEventListener('click', selectShip);
+  // Automatically select the newly placed ship for rotation
+  selectPlacedShip(playerShips[playerShips.length - 1]);
+  onShipPlaced(selectedShip.type); // Notify that a ship was placed
+  selectedShip = null;
+  
+  updatePlayerGrid();
+  clearPlacementPreview();
+  addShipGridClickHandlers(); // ensure click handlers are refreshed
+}
+
+// Update grid displays
+function updatePlayerGrid() {
+  for (let row = 0; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+      const cell = document.querySelector(`[data-grid="player"][data-row="${row}"][data-col="${col}"]`);
+      const cellValue = playerGrid[row][col];
+      cell.className = 'radar-cell';
+      cell.removeAttribute('draggable'); // Reset draggable
+      cell.ondragstart = null;
+      cell.ondragend = null;
+      if (cellValue && cellValue !== 'hit' && cellValue !== 'miss') {
+        cell.classList.add('vessel');
+        // Make ship cells draggable
+        cell.setAttribute('draggable', 'true');
+        cell.ondragstart = (e) => handlePlacedShipDragStart(e, row, col);
+        cell.ondragend = handlePlacedShipDragEnd;
+      } else if (cellValue === 'hit') {
+        cell.classList.add('impact');
+        cell.textContent = '💥';
+      } else if (cellValue === 'miss') {
+        cell.classList.add('miss');
+        cell.textContent = '💧';
       }
-
-      // Try the exact cell first
-      let found = false;
-      let targetRow = row;
-      let targetCol = col;
-      if (tryPlaceAt(row, col)) {
-        found = true;
-      } else {
-        // Search nearby cells in a 3x3 area
-        outer: for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = row + dr;
-            const nc = col + dc;
-            if (nr >= 0 && nr < 10 && nc >= 0 && nc < 10 && tryPlaceAt(nr, nc)) {
-              targetRow = nr;
-              targetCol = nc;
-              found = true;
-              break outer;
-            }
-          }
-        }
-      }
-
-      if (!found) {
-        updateStatus('DEPLOYMENT BLOCKED - SELECT ALTERNATIVE COORDINATES');
-        clearPlacementPreview();
-        // Restore moving ship if needed
-        if (movingShip && movingShipOriginalCells) {
-          movingShipOriginalCells.forEach(cell => { playerGrid[cell.row][cell.col] = movingShip.type; });
-          movingShip.cells = movingShipOriginalCells;
-          updatePlayerGrid();
-          addShipGridClickHandlers();
-        }
-        movingShip = null;
-        movingShipOriginalCells = null;
-        return;
-      }
-
-      // If moving a placed ship
-      if (movingShip) {
-        const shipName = movingShip.name; // Store the name before setting to null
-        const shipCells = [];
-        for (let i = 0; i < dragData.size; i++) {
-          const targetRow2 = targetRow + (dragData.orientation === 'vertical' ? i : 0);
-          const targetCol2 = targetCol + (dragData.orientation === 'horizontal' ? i : 0);
-          playerGrid[targetRow2][targetCol2] = movingShip.type;
-          shipCells.push({ row: targetRow2, col: targetCol2 });
-        }
-        movingShip.cells = shipCells;
-        movingShip.orientation = dragData.orientation;
-        updatePlayerGrid();
-        addShipGridClickHandlers();
-        selectPlacedShip(movingShip);
-        movingShip = null;
-        movingShipOriginalCells = null;
-        clearPlacementPreview();
-        updateStatus(`${shipName} moved successfully!`);
-        updateStartBattleButton(); // Update button state after moving a ship
-        return;
-      }
-      // If placing a new ship from the Fleet panel
-      if (draggedShip) {
-        selectedShip = draggedShip;
-        placeShip(targetRow, targetCol);
-        draggedShip = null;
-        clearPlacementPreview();
-      }
     }
+  }
+}
 
-    function randomPlacement() {
-      gamePhase = 'setup'; // Ensure game phase is reset so Start Battle works
-      // Clear the board first
-      playerGrid = Array(10).fill().map(() => Array(10).fill(null));
-      playerShips = [];
-      selectedShip = null;
-      document.querySelectorAll('.ship-selector').forEach(ship => {
-        ship.classList.remove('deployed', 'selected');
-        ship.setAttribute('draggable', 'true');
-        ship.addEventListener('dragstart', handleShipDragStart);
-        ship.addEventListener('click', () => selectShip(ship));
-      });
-      document.getElementById('start-battle-btn').disabled = true;
-      document.getElementById('start-battle-btn').classList.remove('pulse-start');
-
-      // Try to place each ship randomly
-      SHIPS.forEach(ship => {
-        let placed = false;
-        let attempts = 0;
-        while (!placed && attempts < 100) {
-          const orientation = Math.random() > 0.5 ? 'horizontal' : 'vertical';
-          const row = Math.floor(Math.random() * (orientation === 'vertical' ? 11 - ship.size : 10));
-          const col = Math.floor(Math.random() * (orientation === 'horizontal' ? 11 - ship.size : 10));
-          if (canPlaceShip(playerGrid, row, col, ship.size, orientation)) {
-            // Place the ship
-            const shipCells = [];
-            for (let i = 0; i < ship.size; i++) {
-              const targetRow = row + (orientation === 'vertical' ? i : 0);
-              const targetCol = col + (orientation === 'horizontal' ? i : 0);
-              playerGrid[targetRow][targetCol] = ship.type;
-              shipCells.push({ row: targetRow, col: targetCol });
-            }
-            playerShips.push({
-              ...ship,
-              cells: shipCells,
-              hits: 0,
-              sunk: false,
-              orientation
-            });
-            document.querySelector(`[data-type="${ship.type}"]`).classList.add('deployed');
-            placed = true;
-          }
-          attempts++;
-        }
-      });
-
-      updatePlayerGrid();
-      addShipGridClickHandlers();
-      // Auto-select the first ship for rotation (optional, or set to null for none)
-      if (playerShips.length > 0) {
-        selectPlacedShip(playerShips[0]);
-      }
-      document.getElementById('start-battle-btn').disabled = false;
-      document.getElementById('start-battle-btn').classList.remove('pulse-start');
-      updateStatus('Fleet auto-deployed! All ships battle-ready, Admiral!');
-      updateStartBattleButton(); // Update button state after auto-deploy
-    }
-
-    let selectedPlacedShip = null;
-    function selectPlacedShip(ship) {
-      document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => cell.classList.remove('ship-selected'));
-      ship.cells.forEach(cellInfo => {
-        const cell = document.querySelector(`[data-grid="player"][data-row="${cellInfo.row}"][data-col="${cellInfo.col}"]`);
-        if (cell) cell.classList.add('ship-selected');
-      });
-      selectedPlacedShip = ship;
-      updatePlayerGrid(); // Refresh grid so only this ship is draggable
-      updateStatus(`${ship.name.toUpperCase()} SELECTED - CLICK ROTATE OR DRAG TO MOVE`);
-    }
-
-    function addShipGridClickHandlers() {
-      // Remove previous listeners and selection
-      document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
-        cell.classList.remove('ship-selected');
-        cell.ondragstart = null;
-        cell.ondragend = null;
-      });
-      // DO NOT add any click listeners to ship cells
-    }
-
-    function clearAllShips() {
-      gamePhase = 'setup'; // Ensure game phase is reset so Start Battle works
-      playerGrid = Array(10).fill().map(() => Array(10).fill(null));
-      playerShips = [];
-      selectedShip = null;
-      document.querySelectorAll('.ship-selector').forEach(ship => {
-        ship.classList.remove('deployed', 'selected');
-        ship.setAttribute('draggable', 'true');
-        ship.addEventListener('dragstart', handleShipDragStart);
-        ship.addEventListener('click', () => selectShip(ship));
-      });
-      document.getElementById('start-battle-btn').disabled = true;
-      document.getElementById('start-battle-btn').classList.remove('pulse-start');
-      updateStatus('All ships cleared. Select your ships and deploy them on your grid, Admiral!');
-      updateStartBattleButton(); // Update button state after clearing all ships
-    }
-
-    function startGame() {
-      if (playerShips.length !== 5) {
-        updateStatus('Deploy all ships before starting the battle, Admiral!');
-        return;
-      }
-      gamePhase = 'playing';
-      document.getElementById('start-battle-btn').disabled = true;
-      document.getElementById('start-battle-btn').classList.remove('pulse-start');
-      updateStatus('Your turn to fire! Select a target on the enemy grid.');
-      // (Add any additional logic to actually start the game here)
-    }
-
-    function showMissionCompleteScreen(won) {
-      const missionCompleteDiv = document.createElement('div');
-      missionCompleteDiv.className = 'mission-complete';
-      missionCompleteDiv.innerHTML = `
-        <div class="mission-report">
-          <h2>${won ? 'MISSION COMPLETE' : 'MISSION FAILED'}</h2>
-          <p>You ${won ? 'successfully completed' : 'failed to complete'} the mission.</p>
-          <button onclick="location.reload()">PLAY AGAIN</button>
-        </div>
-      `;
-      document.body.appendChild(missionCompleteDiv);
-    }
-
-    function useSonar() {
-      updateStatus('Sonar activated! Revealing nearby enemy ships.');
-      // In a real game, this would reveal nearby enemy ship cells
-      // For now, it just shows a message
-    }
-
-    function useAirstrike() {
-      updateStatus('Airstrike launched! Targeting enemy ships.');
-      // In a real game, this would deal damage to nearby enemy ship cells
-      // For now, it just shows a message
-    }
-
-    // Test function for debugging - call this from browser console
-    function testStartButton() {
-      console.log('Testing start button...');
-      console.log('Button element:', document.getElementById('start-battle-btn'));
-      console.log('Button disabled:', document.getElementById('start-battle-btn').disabled);
-      console.log('Player ships:', playerShips.length);
-      console.log('Game phase:', gamePhase);
+function updateEnemyGrid() {
+  for (let row = 0; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+      const cell = document.querySelector(`[data-grid="enemy"][data-row="${row}"][data-col="${col}"]`);
+      const cellValue = enemyGrid[row][col];
       
-      // Try to manually trigger the click
-      document.getElementById('start-battle-btn').click();
+      cell.className = 'radar-cell';
+      if (cellValue === 'hit') {
+        cell.classList.add('impact');
+        cell.textContent = '💥';
+      } else if (cellValue === 'miss') {
+        cell.classList.add('miss');
+        cell.textContent = '💧';
+      }
+      
+      // Check if part of sunk ship
+      const sunkShip = enemyShips.find(ship => 
+        ship.sunk && ship.cells.some(c => c.row === row && c.col === col)
+      );
+      if (sunkShip) {
+        cell.classList.add('destroyed');
+        cell.textContent = '🔥';
+      }
     }
+  }
+}
 
-    // --- START BATTLE BUTTON LOGIC ---
-    function updateStartBattleButton() {
-      const btn = document.getElementById('start-battle-btn');
-      if (playerShips.length === 5) {
+// Control functions
+function rotateVessel() {
+  // Only rotate if a placed ship is selected
+  if (selectedPlacedShip) {
+    const old = selectedPlacedShip;
+    // Remove ship from grid
+    old.cells.forEach(cell => { playerGrid[cell.row][cell.col] = null; });
+    // Try new orientation
+    const newOrientation = old.orientation === 'horizontal' ? 'vertical' : 'horizontal';
+    const base = old.cells[0];
+    let canRotate = true;
+    let newCells = [];
+    for (let i = 0; i < old.size; i++) {
+      const row = newOrientation === 'vertical' ? base.row + i : base.row;
+      const col = newOrientation === 'horizontal' ? base.col + i : base.col;
+      if (row >= 10 || col >= 10 || playerGrid[row][col]) {
+        canRotate = false;
+        break;
+      }
+      newCells.push({ row, col });
+    }
+    if (canRotate) {
+      // Place ship in new orientation
+      newCells.forEach(cell => { playerGrid[cell.row][cell.col] = old.type; });
+      old.cells = newCells;
+      old.orientation = newOrientation;
+      updatePlayerGrid();
+      addShipGridClickHandlers();
+      updateStatus(`${old.name.toUpperCase()} ROTATED TO ${newOrientation.toUpperCase()}`);
+    } else {
+      // Restore old placement
+      old.cells.forEach(cell => { playerGrid[cell.row][cell.col] = old.type; });
+      updateStatus('NOT ENOUGH SPACE TO ROTATE HERE!');
+    }
+    return;
+  }
+  // If no placed ship is selected, do nothing and show a message
+  updateStatus('SELECT A PLACED SHIP ON THE GRID TO ROTATE IT.');
+}
+
+// Lifetime record logic
+function updateLifetimeRecordDisplay() {
+  const gamesPlayed = parseInt(localStorage.getItem('battleship_gamesPlayed') || '0', 10);
+  const gamesWon = parseInt(localStorage.getItem('battleship_gamesWon') || '0', 10);
+  const winPct = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+  document.getElementById('games-played').textContent = `Games Played: ${gamesPlayed}`;
+  document.getElementById('games-won').textContent = `Win %: ${winPct}%`;
+}
+// Call on load
+updateLifetimeRecordDisplay();
+// Update after game ends
+function updateLifetimeRecord(won) {
+  let gamesPlayed = parseInt(localStorage.getItem('battleship_gamesPlayed') || '0', 10);
+  let gamesWon = parseInt(localStorage.getItem('battleship_gamesWon') || '0', 10);
+  gamesPlayed++;
+  if (won) gamesWon++;
+  localStorage.setItem('battleship_gamesPlayed', gamesPlayed);
+  localStorage.setItem('battleship_gamesWon', gamesWon);
+  updateLifetimeRecordDisplay();
+}
+
+// --- SHIP PLACEMENT TRACKING AND BUTTON STATE MANAGEMENT ---
+const placedShips = {
+    carrier: false,
+    battleship: false,
+    cruiser: false,
+    submarine: false,
+    destroyer: false
+};
+const REQUIRED_SHIPS = 5;
+
+function checkAllShipsPlaced() {
+    return Object.values(placedShips).every(Boolean);
+}
+
+function updateStartBattleButton() {
+    const btn = document.getElementById('start-battle-btn');
+    if (checkAllShipsPlaced()) {
         btn.disabled = false;
         btn.classList.add('pulse-start');
-      } else {
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    } else {
         btn.disabled = true;
         btn.classList.remove('pulse-start');
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    }
+}
+
+function onShipPlaced(shipType) {
+    placedShips[shipType] = true;
+    updateStartBattleButton();
+}
+
+function onShipRemoved(shipType) {
+    placedShips[shipType] = false;
+    updateStartBattleButton();
+}
+
+// Initialize game when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  initGame();
+  updateStartBattleButton(); // Initial button state
+});
+
+// --- Drag-and-drop handlers for ships ---
+let draggedShip = null;
+function handleShipDragStart(e) {
+  if (this.classList.contains('deployed')) {
+    e.preventDefault();
+    return;
+  }
+  draggedShip = SHIPS.find(s => s.type === this.dataset.type);
+  // Store ship type and orientation in dataTransfer
+  e.dataTransfer.setData('text/plain', JSON.stringify({
+    type: draggedShip.type,
+    size: draggedShip.size,
+    orientation: 'horizontal' // Always start horizontal for drag
+  }));
+}
+function handleShipDragEnd(e) {
+  draggedShip = null;
+  clearPlacementPreview();
+}
+// --- Drag-and-drop handlers for moving placed ships ---
+let movingShip = null;
+let movingShipOriginalCells = null;
+function handlePlacedShipDragStart(e, row, col) {
+  // Only allow drag if this cell is part of a ship
+  const shipType = playerGrid[row][col];
+  if (!shipType) return;
+  const ship = playerShips.find(s => s.type === shipType && s.cells.some(c => c.row === row && c.col === col));
+  if (!ship) return;
+  movingShip = ship;
+  movingShipOriginalCells = [...ship.cells.map(c => ({...c}))];
+  // Remove ship from grid for preview
+  ship.cells.forEach(cell => { playerGrid[cell.row][cell.col] = null; });
+  updatePlayerGrid();
+  addShipGridClickHandlers();
+  // Set dataTransfer for drop
+  e.dataTransfer.setData('text/plain', JSON.stringify({
+    type: ship.type,
+    size: ship.size,
+    orientation: ship.orientation
+  }));
+  // Show preview at current location
+  const base = movingShipOriginalCells[0];
+  showPlacementPreview(base.row, base.col);
+}
+function handlePlacedShipDragEnd(e) {
+  // If not dropped in a valid spot, restore ship
+  if (movingShip && movingShipOriginalCells) {
+    // If the ship is not on the grid (cells are empty), restore
+    if (!movingShip.cells.some(cell => playerGrid[cell.row][cell.col] === movingShip.type)) {
+      movingShipOriginalCells.forEach(cell => { playerGrid[cell.row][cell.col] = movingShip.type; });
+      movingShip.cells = movingShipOriginalCells;
+      updatePlayerGrid();
+      addShipGridClickHandlers();
+    }
+  }
+  movingShip = null;
+  movingShipOriginalCells = null;
+}
+// --- Drag-and-drop handlers for grid cells ---
+function handleCellDragOver(e) {
+  e.preventDefault(); // Allow drop
+  let dragData = null;
+  try {
+    dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+  } catch {}
+  if (!dragData || gamePhase !== 'setup') return;
+  const row = parseInt(this.dataset.row);
+  const col = parseInt(this.dataset.col);
+  const canDeploy = canPlaceShip(playerGrid, row, col, dragData.size, dragData.orientation);
+  selectedShip = draggedShip || movingShip;
+  showPlacementPreview(row, col);
+}
+function handleCellDrop(e) {
+  e.preventDefault();
+  let dragData = null;
+  try {
+    dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+  } catch {}
+  if (!dragData || gamePhase !== 'setup') return;
+  const row = parseInt(this.dataset.row);
+  const col = parseInt(this.dataset.col);
+
+  // Helper to try placing at a given cell
+  function tryPlaceAt(r, c) {
+    return canPlaceShip(playerGrid, r, c, dragData.size, dragData.orientation);
+  }
+
+  // Try the exact cell first
+  let found = false;
+  let targetRow = row;
+  let targetCol = col;
+  if (tryPlaceAt(row, col)) {
+    found = true;
+  } else {
+    // Search nearby cells in a 3x3 area
+    outer: for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (nr >= 0 && nr < 10 && nc >= 0 && nc < 10 && tryPlaceAt(nr, nc)) {
+          targetRow = nr;
+          targetCol = nc;
+          found = true;
+          break outer;
+        }
       }
     }
+  }
+
+  if (!found) {
+    updateStatus('DEPLOYMENT BLOCKED - SELECT ALTERNATIVE COORDINATES');
+    clearPlacementPreview();
+    // Restore moving ship if needed
+    if (movingShip && movingShipOriginalCells) {
+      movingShipOriginalCells.forEach(cell => { playerGrid[cell.row][cell.col] = movingShip.type; });
+      movingShip.cells = movingShipOriginalCells;
+      updatePlayerGrid();
+      addShipGridClickHandlers();
+    }
+    movingShip = null;
+    movingShipOriginalCells = null;
+    return;
+  }
+
+  // If moving a placed ship
+  if (movingShip) {
+    const shipName = movingShip.name; // Store the name before setting to null
+    const shipCells = [];
+    for (let i = 0; i < dragData.size; i++) {
+      const targetRow2 = targetRow + (dragData.orientation === 'vertical' ? i : 0);
+      const targetCol2 = targetCol + (dragData.orientation === 'horizontal' ? i : 0);
+      playerGrid[targetRow2][targetCol2] = movingShip.type;
+      shipCells.push({ row: targetRow2, col: targetCol2 });
+    }
+    movingShip.cells = shipCells;
+    movingShip.orientation = dragData.orientation;
+    updatePlayerGrid();
+    addShipGridClickHandlers();
+    selectPlacedShip(movingShip);
+    movingShip = null;
+    movingShipOriginalCells = null;
+    clearPlacementPreview();
+    updateStatus(`${shipName} moved successfully!`);
+    updateStartBattleButton(); // Update button state after moving a ship
+    return;
+  }
+  // If placing a new ship from the Fleet panel
+  if (draggedShip) {
+    selectedShip = draggedShip;
+    placeShip(targetRow, targetCol);
+    draggedShip = null;
+    clearPlacementPreview();
+  }
+}
+
+function randomPlacement() {
+  gamePhase = 'setup'; // Ensure game phase is reset so Start Battle works
+  // Clear the board first
+  playerGrid = Array(10).fill().map(() => Array(10).fill(null));
+  playerShips = [];
+  selectedShip = null;
+  document.querySelectorAll('.ship-selector').forEach(ship => {
+    ship.classList.remove('deployed', 'selected');
+    ship.setAttribute('draggable', 'true');
+    ship.addEventListener('dragstart', handleShipDragStart);
+    ship.addEventListener('click', () => selectShip(ship));
+  });
+  Object.keys(placedShips).forEach(ship => placedShips[ship] = false); // Reset placedShips
+  // Try to place each ship randomly
+  SHIPS.forEach(ship => {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 100) {
+      const orientation = Math.random() > 0.5 ? 'horizontal' : 'vertical';
+      const row = Math.floor(Math.random() * (orientation === 'vertical' ? 11 - ship.size : 10));
+      const col = Math.floor(Math.random() * (orientation === 'horizontal' ? 11 - ship.size : 10));
+      if (canPlaceShip(playerGrid, row, col, ship.size, orientation)) {
+        // Place the ship
+        const shipCells = [];
+        for (let i = 0; i < ship.size; i++) {
+          const targetRow = row + (orientation === 'vertical' ? i : 0);
+          const targetCol = col + (orientation === 'horizontal' ? i : 0);
+          playerGrid[targetRow][targetCol] = ship.type;
+          shipCells.push({ row: targetRow, col: targetCol });
+        }
+        playerShips.push({
+          ...ship,
+          cells: shipCells,
+          hits: 0,
+          sunk: false,
+          orientation
+        });
+        document.querySelector(`[data-type="${ship.type}"]`).classList.add('deployed');
+        placedShips[ship.type] = true; // Mark as placed
+        placed = true;
+      }
+      attempts++;
+    }
+  });
+
+  updatePlayerGrid();
+  addShipGridClickHandlers();
+  // Auto-select the first ship for rotation (optional, or set to null for none)
+  if (playerShips.length > 0) {
+    selectPlacedShip(playerShips[0]);
+  }
+  updateStartBattleButton(); // Update button state after auto-deploy
+  document.getElementById('start-battle-btn').disabled = !checkAllShipsPlaced();
+  document.getElementById('start-battle-btn').classList.toggle('pulse-start', checkAllShipsPlaced());
+  updateStatus('Fleet auto-deployed! All ships battle-ready, Admiral!');
+}
+
+let selectedPlacedShip = null;
+function selectPlacedShip(ship) {
+  document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => cell.classList.remove('ship-selected'));
+  ship.cells.forEach(cellInfo => {
+    const cell = document.querySelector(`[data-grid="player"][data-row="${cellInfo.row}"][data-col="${cellInfo.col}"]`);
+    if (cell) cell.classList.add('ship-selected');
+  });
+  selectedPlacedShip = ship;
+  updatePlayerGrid(); // Refresh grid so only this ship is draggable
+  updateStatus(`${ship.name.toUpperCase()} SELECTED - CLICK ROTATE OR DRAG TO MOVE`);
+}
+
+function addShipGridClickHandlers() {
+  // Remove previous listeners and selection
+  document.querySelectorAll('[data-grid="player"] .radar-cell').forEach(cell => {
+    cell.classList.remove('ship-selected');
+    cell.ondragstart = null;
+    cell.ondragend = null;
+  });
+  // DO NOT add any click listeners to ship cells
+}
+
+function clearAllShips() {
+  gamePhase = 'setup'; // Ensure game phase is reset so Start Battle works
+  playerGrid = Array(10).fill().map(() => Array(10).fill(null));
+  playerShips = [];
+  selectedShip = null;
+  document.querySelectorAll('.ship-selector').forEach(ship => {
+    ship.classList.remove('deployed', 'selected');
+    ship.setAttribute('draggable', 'true');
+    ship.addEventListener('dragstart', handleShipDragStart);
+    ship.addEventListener('click', () => selectShip(ship));
+  });
+  Object.keys(placedShips).forEach(ship => placedShips[ship] = false); // Reset placedShips
+  updateStartBattleButton(); // Update button state after clearing all ships
+  document.getElementById('start-battle-btn').disabled = true;
+  document.getElementById('start-battle-btn').classList.remove('pulse-start');
+  updateStatus('All ships cleared. Select your ships and deploy them on your grid, Admiral!');
+}
+
+function startGame() {
+  if (playerShips.length !== 5) {
+    updateStatus('Deploy all ships before starting the battle, Admiral!');
+    return;
+  }
+  gamePhase = 'playing';
+  document.getElementById('start-battle-btn').disabled = true;
+  document.getElementById('start-battle-btn').classList.remove('pulse-start');
+  updateStatus('Your turn to fire! Select a target on the enemy grid.');
+  // (Add any additional logic to actually start the game here)
+}
+
+function showMissionCompleteScreen(won) {
+  const missionCompleteDiv = document.createElement('div');
+  missionCompleteDiv.className = 'mission-complete';
+  missionCompleteDiv.innerHTML = `
+    <div class="mission-report">
+      <h2>${won ? 'MISSION COMPLETE' : 'MISSION FAILED'}</h2>
+      <p>You ${won ? 'successfully completed' : 'failed to complete'} the mission.</p>
+      <button onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+  `;
+  document.body.appendChild(missionCompleteDiv);
+}
+
+function useSonar() {
+  updateStatus('Sonar activated! Revealing nearby enemy ships.');
+  // In a real game, this would reveal nearby enemy ship cells
+  // For now, it just shows a message
+}
+
+function useAirstrike() {
+  updateStatus('Airstrike launched! Targeting enemy ships.');
+  // In a real game, this would deal damage to nearby enemy ship cells
+  // For now, it just shows a message
+}
+
+function handleEnemyGridClick(row, col) {
+  if (gamePhase !== 'playing') return;
+
+  // Prevent firing at the same cell twice
+  if (enemyGrid[row][col] === 'hit' || enemyGrid[row][col] === 'miss') return;
+
+  // For demo: randomly decide hit or miss
+  const isHit = Math.random() < 0.3; // 30% chance of hit
+  enemyGrid[row][col] = isHit ? 'hit' : 'miss';
+
+  // Update the cell visually
+  const cell = document.querySelector(`[data-grid="enemy"][data-row="${row}"][data-col="${col}"]`);
+  if (cell) {
+    cell.textContent = isHit ? '💥' : '💧';
+    cell.classList.add(isHit ? 'impact' : 'miss');
+  }
+
+  // Update stats (implement your own logic for score, accuracy, etc.)
+  // updateStats();
+
+  // Optionally: check for win condition
+  // if (allEnemyShipsSunk()) { endGame(); }
+}
+
+// Test function for debugging - call this from browser console
+function testStartButton() {
+  console.log('Testing start button...');
+  console.log('Button element:', document.getElementById('start-battle-btn'));
+  console.log('Button disabled:', document.getElementById('start-battle-btn').disabled);
+  console.log('Player ships:', playerShips.length);
+  console.log('Game phase:', gamePhase);
+  
+  // Try to manually trigger the click
+  document.getElementById('start-battle-btn').click();
+}
   </script>
 </body>
 </html>
