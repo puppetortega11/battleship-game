@@ -1,0 +1,465 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-orbitron), monospace;
+  background: radial-gradient(circle at center, #0a1a0a 0%, #000 70%);
+  color: #00ff41;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  overflow-x: auto;
+}
+
+.radar-container {
+  background: linear-gradient(145deg, #001100, #002200);
+  border: 2px solid #00ff41;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 
+    0 0 30px #00ff4150,
+    inset 0 0 20px #00330a;
+  max-width: 1400px;
+  width: 100%;
+}
+
+.command-header {
+  text-align: center;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #003300, #001a00, #003300);
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #00ff41;
+  box-shadow: 0 0 15px #00ff4130;
+  position: relative;
+}
+
+.command-header h1 {
+  font-size: 2.2em;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-shadow: 0 0 10px #00ff41;
+  margin-bottom: 10px;
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from { text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41; }
+  to { text-shadow: 0 0 20px #00ff41, 0 0 30px #00ff41, 0 0 40px #00ff41; }
+}
+
+.exit-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(145deg, #440000, #220000);
+  color: #ff4444;
+  border: 1px solid #ff4444;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--font-orbitron), monospace;
+  font-weight: 700;
+  font-size: 0.8em;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.exit-btn:hover {
+  background: linear-gradient(145deg, #660000, #330000);
+  box-shadow: 0 0 10px #ff444450;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(90deg, #001a00, #002200);
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #00ff41;
+  margin-bottom: 20px;
+  box-shadow: inset 0 2px 5px #00110050;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 10px;
+}
+
+.mode-btn {
+  background: linear-gradient(145deg, #003300, #001100);
+  color: #00ff41;
+  border: 1px solid #00ff41;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--font-orbitron), monospace;
+  font-weight: 700;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mode-btn:hover, .mode-btn.active {
+  background: linear-gradient(145deg, #00ff41, #00cc33);
+  color: #000;
+  box-shadow: 0 0 15px #00ff41;
+  text-shadow: none;
+}
+
+.radar-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
+.stat-item {
+  text-align: center;
+  background: linear-gradient(145deg, #001a00, #000800);
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid #00ff4150;
+  min-width: 80px;
+}
+
+.stat-value {
+  font-size: 1.2em;
+  color: #00ff41;
+  text-shadow: 0 0 5px #00ff41;
+}
+
+.lifetime-record {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: linear-gradient(145deg, #001a00, #000800);
+  padding: 8px 15px;
+  border-radius: 5px;
+  border: 1px solid #00ff4150;
+  min-width: 150px;
+  font-size: 0.85em;
+  font-weight: 700;
+  box-shadow: 0 0 10px #00ff4130;
+}
+
+.lifetime-record-title {
+  font-size: 1.05em;
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+  color: #00ff41;
+  text-shadow: 0 0 8px #00ff41;
+  text-align: right;
+}
+
+.lifetime-record-value {
+  font-size: 1.2em;
+  color: #00ff41;
+  text-shadow: 0 0 5px #00ff41;
+  text-align: right;
+}
+
+.status-message {
+  background: linear-gradient(90deg, #001100, #002200, #001100);
+  color: #00ff41;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 20px;
+  border: 1px solid #00ff41;
+  box-shadow: 0 0 10px #00ff4130;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.battle-interface {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ship-command {
+  background: linear-gradient(145deg, #001a00, #000a00);
+  border: 2px solid #00ff41;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 0 20px #00ff4130;
+  min-width: 250px;
+}
+
+.ship-command h3 {
+  color: #00ff41;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 1.1em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px #00ff41;
+}
+
+.fleet-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.ship-selector {
+  background: linear-gradient(145deg, #002200, #001100);
+  border: 1px solid #00ff41;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  font-weight: 700;
+  color: #00ff41;
+  position: relative;
+  font-size: 0.9em;
+  letter-spacing: 1px;
+}
+
+.ship-selector:hover {
+  background: linear-gradient(145deg, #003300, #002200);
+  box-shadow: 0 0 10px #00ff41;
+  transform: translateY(-1px);
+}
+
+.ship-selector.selected {
+  background: linear-gradient(145deg, #00ff41, #00cc33);
+  color: #000;
+  animation: radarPulse 1.5s infinite;
+}
+
+.ship-selector.deployed {
+  background: linear-gradient(145deg, #222, #111);
+  color: #666;
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+}
+
+@keyframes radarPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); box-shadow: 0 0 20px #00ff41; }
+}
+
+.command-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-button {
+  background: linear-gradient(145deg, #003300, #001800);
+  color: #00ff41;
+  border: 1px solid #00ff41;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.85em;
+  font-weight: 700;
+  font-family: var(--font-orbitron), monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.control-button:hover {
+  background: linear-gradient(145deg, #004400, #002200);
+  box-shadow: 0 0 8px #00ff41;
+}
+
+.control-button:disabled {
+  background: linear-gradient(145deg, #111, #080808);
+  color: #666;
+  border-color: #333;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.control-button.pulse-start {
+  animation: pulseStart 1.5s infinite;
+}
+
+@keyframes pulseStart {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.13); }
+}
+
+.radar-screen {
+  background: linear-gradient(145deg, #001a00, #000a00);
+  border: 2px solid #00ff41;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 0 20px #00ff4130;
+  position: relative;
+}
+
+.screen-title {
+  color: #00ff41;
+  font-size: 1em;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px #00ff41;
+}
+
+.grid-display {
+  position: relative;
+  display: inline-block;
+}
+
+.coordinate-labels {
+  position: absolute;
+  display: flex;
+  font-size: 0.7em;
+  font-weight: 700;
+  color: #00ff41;
+  text-shadow: 0 0 5px #00ff41;
+}
+
+.coordinate-labels.letters {
+  top: -20px;
+  left: 20px;
+  width: 360px;
+}
+
+.coordinate-labels.numbers {
+  left: -18px;
+  top: 2px;
+  flex-direction: column;
+  height: 360px;
+}
+
+.coordinate-labels span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+.radar-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 36px);
+  grid-template-rows: repeat(10, 36px);
+  gap: 1px;
+  background: #001100;
+  border: 2px solid #00ff41;
+  border-radius: 8px;
+  padding: 2px;
+  box-shadow: inset 0 0 10px #00ff4150;
+}
+
+.radar-cell {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(145deg, #002200, #001100);
+  border: 1px solid #00ff4130;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+  border-radius: 2px;
+}
+
+.radar-cell:hover {
+  background: linear-gradient(145deg, #003300, #002200);
+  box-shadow: 0 0 8px #00ff4150;
+}
+
+.radar-cell.vessel {
+  background: linear-gradient(145deg, #004400, #002200);
+  border-color: #00ff41;
+  box-shadow: 0 0 5px #00ff4150;
+}
+
+.radar-cell.impact {
+  background: linear-gradient(145deg, #440000, #220000);
+  border-color: #ff4444;
+  box-shadow: 0 0 8px #ff444450;
+}
+
+.radar-cell.miss {
+  background: linear-gradient(145deg, #001144, #000822);
+  border-color: #4488ff;
+  box-shadow: 0 0 5px #4488ff50;
+}
+
+.radar-cell.destroyed {
+  background: linear-gradient(145deg, #660000, #330000);
+  border-color: #ff6666;
+  box-shadow: 0 0 10px #ff666650;
+}
+
+.radar-cell.selected {
+  background: linear-gradient(145deg, #00ff41, #00cc33);
+  border-color: #00ff41;
+  box-shadow: 0 0 15px #00ff41;
+}
+
+.radar-cell.invalid-target {
+  background: linear-gradient(145deg, #440000, #220000);
+  border-color: #ff4444;
+  box-shadow: 0 0 8px #ff444450;
+}
+
+@media (max-width: 768px) {
+  .battle-interface {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .radar-stats {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .radar-grid {
+    grid-template-columns: repeat(10, 28px);
+    grid-template-rows: repeat(10, 28px);
+  }
+  
+  .radar-cell {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+  
+  .coordinate-labels span {
+    width: 28px;
+    height: 28px;
+  }
+
+  .coordinate-labels.letters {
+    width: 280px;
+    left: 18px;
+  }
+
+  .coordinate-labels.numbers {
+    height: 280px;
+    left: -16px;
+  }
+}
